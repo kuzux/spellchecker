@@ -2,6 +2,7 @@ from collections import defaultdict
 from nltk.tokenize import RegexpTokenizer
 import os.path
 import pickle
+import sys
 
 def tokenize(text):
     tok = RegexpTokenizer("(\w+'\w+)|(\w+)")
@@ -14,14 +15,14 @@ def train(words):
     return res
 
 def load_dict(filename):
-    return pickle.load(open(filename, "rb"))
+    return defaultdict(lambda: 1, pickle.load(open(filename, "rb")))
 
 def make_dict(filename):
     res = None
     with open("corpus.txt") as f:
-        res = dict(train(tokenize(f.read())))
+        res = train(tokenize(f.read()))
     
-    pickle.dump(res, open("dict.p", "wb"))
+    pickle.dump(dict(res), open("dict.p", "wb"))
 
     return res
 
@@ -54,11 +55,22 @@ def neighbors(word):
 
     return set(res)
 
-wordlist = None
+def main():
+    if len(sys.argv) < 3:
+        print "USAGE: spellchecker input output"
+        return
 
-if os.path.isfile("dict.p"):
-    wordlist = load_dict("dict.p")
-else:
-    wordlist = make_dict("dict.p")
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
 
-print len(wordlist)
+    wordlist = None
+
+    if os.path.isfile("dict.p"):
+        wordlist = load_dict("dict.p")
+    else:
+        wordlist = make_dict("dict.p")
+
+    print len(wordlist)
+
+if __name__ == '__main__':
+    main()
