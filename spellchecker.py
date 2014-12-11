@@ -1,29 +1,27 @@
-from collections import defaultdict
 from nltk.tokenize import RegexpTokenizer
-import os.path
-import pickle
+from itertools import *
 import sys
+
+wordlist = None
 
 def tokenize(text):
     tok = RegexpTokenizer("(\w+'\w+)|(\w+)")
     return map(lambda x: x.lower(), tok.tokenize(text))
 
 def train(words):
-    res = defaultdict(lambda: 1)
+    res = dict()
     for w in words:
-        res[w] += 1    
+        if w in res:
+            res[w] += 1
+        else:
+            res[w] = 1
     return res
-
-def load_dict(filename):
-    return defaultdict(lambda: 1, pickle.load(open(filename, "rb")))
 
 def make_dict(filename):
     res = None
     with open("corpus.txt") as f:
         res = train(tokenize(f.read()))
     
-    pickle.dump(dict(res), open("dict.p", "wb"))
-
     return res
 
 # returns all possible words with an edit distance of 1 (damerau-levenshtein distance)
@@ -55,6 +53,34 @@ def neighbors(word):
 
     return set(res)
 
+# words: an array of words
+# return value: a set of words, which are both in the argument and the wordlist
+def candidates(words):
+    return set(ifilter(lambda w: w in wordlist, words))
+
+def flatten(listOfLists):
+    "Flatten one level of nesting"
+    return chain.from_iterable(listOfLists)
+
+def corrected(word):
+    if word in wordlist:
+        return word
+
+    neigh = neighbors(word)
+    cands = candidates(neigh)
+
+    if cands:
+        return max(cands, key = wordlist.get)
+    
+    # cands2 is the set of words with an edit distance of 2
+    # cands2 = set(candidates(flatten(imap(lambda w: neighbors(w), neigh))))
+    
+    # if cands2:
+    #    return max(cands2, key = wordlist.get)
+
+    # no replacement word found
+    return ""
+
 def main():
     if len(sys.argv) < 3:
         print "USAGE: spellchecker input output"
@@ -62,15 +88,14 @@ def main():
 
     infile = sys.argv[1]
     outfile = sys.argv[2]
+    global wordlist
 
-    wordlist = None
+    wordlist = make_dict()
 
-    if os.path.isfile("dict.p"):
-        wordlist = load_dict("dict.p")
-    else:
-        wordlist = make_dict("dict.p")
-
-    print len(wordlist)
+    with open(infile, "r") as fin:
+        with open(outfile, "w") as fout:
+            for word in fin:
+                fout.write(corrected(word.strip().lower()) + "\n")
 
 if __name__ == '__main__':
     main()
